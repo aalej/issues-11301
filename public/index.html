@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Welcome to Firebase Hosting</title>
+
+  <!-- update the version number as needed -->
+  <script defer src="/__/firebase/13.0.0/firebase-app-compat.js"></script>
+  <!-- include only the Firebase features as you need -->
+  <script defer src="/__/firebase/13.0.0/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/13.0.0/firebase-storage-compat.js"></script>
+  <!-- 
+      initialize the SDK after all desired features are loaded, set useEmulator to false
+      to avoid connecting the SDK to running emulators.
+    -->
+  <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+</head>
+
+<body>
+  <div style="display: flex; gap: 30px;">
+    <div>
+      <div><strong>User A</strong></div>
+      <div id="userAStatus">Not signed in</div>
+      <div>
+        <button id="signInUserA">Sign In</button>
+      </div>
+      <div>
+        <button id="uploadPhotoA">Upload photo</button>
+      </div>
+    </div>
+
+    <div>
+      <div><strong>User B (set up this first)</strong></div>
+      <div id="userBStatus">Not signed in</div>
+      <div>
+        <button id="signInUserB">Sign In</button>
+      </div>
+      <div>
+        <button id="uploadPhotoB">Upload photo</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      try {
+        let app = firebase.app();
+        let features = [
+          'auth',
+          'storage',
+        ].filter(feature => typeof app[feature] === 'function');
+
+        let userAUid = null;
+        let userBUid = null;
+
+        const stoage = firebase.storage(app);
+        const auth = firebase.auth(app);
+        // auth.useEmulator('http://127.0.0.1:9099');
+
+        const uploadPhotoA = document.getElementById('uploadPhotoA');
+        const uploadPhotoB = document.getElementById('uploadPhotoB');
+        const signInUserA = document.getElementById('signInUserA');
+        const signInUserB = document.getElementById('signInUserB');
+        const userAStatus = document.getElementById("userAStatus");
+        const userBStatus = document.getElementById("userBStatus");
+        const storageList = document.getElementById("storageList");
+        const refreshStorageBtn = document.getElementById("refreshStorage");
+
+        signInUserA.addEventListener('click', async () => {
+          await logoutExistingUser();
+          auth.signInWithEmailAndPassword('userA@test.com', 'password').then((userCredential) => {
+            const user = userCredential.user;
+            userAStatus.innerText = "Signed in - " + user.uid;
+            userBStatus.innerText = "Not signed in";
+            userAUid = user.uid;
+          })
+            .catch(async (error) => {
+              if (error.code === "auth/user-not-found" || error.code === "auth/invalid-credential") {
+                auth.createUserWithEmailAndPassword('userA@test.com', 'password').then((userCredential) => {
+                  const user = userCredential.user;
+                  userAStatus.innerText = "Signed in - " + user.uid;
+                  userBStatus.innerText = "Not signed in";
+                  userAUid = user.uid;
+                })
+                  .catch((error) => {
+                    // no action
+                  });
+              }
+            });
+        });
+
+        signInUserB.addEventListener('click', async () => {
+          await logoutExistingUser();
+          auth.signInWithEmailAndPassword('userB@test.com', 'password').then((userCredential) => {
+            const user = userCredential.user;
+            userAStatus.innerText = "Not signed in";
+            userBStatus.innerText = "Signed in - " + user.uid;
+            userBUid = user.uid;
+          })
+            .catch(async (error) => {
+              console.log(error.code)
+              if (error.code === "auth/user-not-found" || error.code === "auth/invalid-credential") {
+                auth.createUserWithEmailAndPassword('userB@test.com', 'password').then((userCredential) => {
+                  const user = userCredential.user;
+                  userAStatus.innerText = "Not signed in";
+                  userBStatus.innerText = "Signed in - " + user.uid;
+                  userBUid = user.uid;
+                })
+                  .catch((error) => {
+                    // no action
+                  });
+              }
+            });
+        });
+
+        uploadPhotoA.addEventListener('click', async () => {
+          const testFolderRef = stoage.ref(`users/${userAUid}/../${userBUid}/photo.png`);
+          const response = await fetch('/images/userA/photo.png');
+          const blob = await response.blob();
+          await testFolderRef.put(blob).then((snapshot) => {
+            console.log("Uploaded a blob or file!");
+            alert("Uploaded")
+          });
+        });
+
+        uploadPhotoB.addEventListener('click', async () => {
+          const testFolderRef = stoage.ref(`users/${userBUid}/photo.png`);
+          const response = await fetch('/images/userB/photo.png');
+          const blob = await response.blob();
+          await testFolderRef.put(blob).then((snapshot) => {
+            console.log("Uploaded a blob or file!");
+            alert("Uploaded")
+          });
+        });
+
+        async function logoutExistingUser() {
+          if (firebase.auth().currentUser) {
+            await firebase.auth().signOut();
+            console.log("User logged out");
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    });
+  </script>
+</body>
+
+</html>
